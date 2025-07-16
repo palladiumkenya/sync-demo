@@ -1,0 +1,55 @@
+services:
+  mysql-master:
+    image: mysql:${TAG}
+    container_name: mysql-master
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MASTER_DB_PASSWORD}
+      MYSQL_DATABASE: ${SYNC_DB}
+    volumes:
+      - ${MASTER_DATA}:/var/lib/mysql
+      - ${MASTER_CONFIG}:/etc/mysql/conf.d
+    ports:
+      - "${MASTER_DB_PORT}:3306"
+    networks:
+      - emr-net
+
+  mysql-site01:
+    image: mysql:${TAG}
+    container_name: mysql-site01
+    depends_on:
+      - mysql-master
+    environment:
+      MYSQL_ROOT_PASSWORD: ${SITE01_DB_PASSWORD}
+      MYSQL_DATABASE: ${SYNC_DB}
+    volumes:
+      - ${SITE01_DATA}:/var/lib/mysql
+      - ${SITE01_CONFIG}:/etc/mysql/conf.d
+    ports:
+      - "${SITE01_DB_PORT}:3306"
+    networks:
+      - emr-net
+
+  mysql-site02:
+    image: mysql:${TAG}
+    container_name: mysql-site02
+    depends_on:
+      - mysql-master
+    environment:
+      MYSQL_ROOT_PASSWORD: ${SITE02_DB_PASSWORD}
+      MYSQL_DATABASE: ${SYNC_DB}
+    volumes:
+      - ${SITE02_DATA}:/var/lib/mysql
+      - ${SITE02_CONFIG}:/etc/mysql/conf.d
+    ports:
+      - "${SITE02_DB_PORT}:3306"
+    networks:
+      - emr-net
+
+volumes:
+  mysql-master-data:
+  mysql-site01-data:
+  mysql-site02-data:
+
+networks:
+  emr-net:
+    driver: bridge

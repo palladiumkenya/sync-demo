@@ -1,0 +1,3 @@
+# Exclude sample data stores
+/store/mysql-*/**
+!store/mysql-*/.gitkeep
