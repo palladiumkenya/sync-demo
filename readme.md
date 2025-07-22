@@ -13,21 +13,21 @@ Checkout and run using docker compose
 ```bash
    docker compose up -d
 ```
-## Step 1: Configure Master Site
+## Step 1: Configure replication user on hub
 
-Connect to master
+Connect to hub
 
 ```bash
-    docker exec -it mysql-master mysql -uroot -pmauncentral
+    docker exec -it mysql-hub mysql -uroot -pmauncentral
 ```
-Setup to sync user to be used by slave sites
+Setup to sync user to be used by replication
 ```bash
     CREATE USER 'syncuser'@'%' IDENTIFIED WITH mysql_native_password BY 'syncpassword';
     GRANT REPLICATION SLAVE ON *.* TO 'syncuser'@'%';
     FLUSH PRIVILEGES;
 ```
 
-Load replication settings required by sites
+Load replication settings get GTID
 
 ```bash
     SHOW MASTER STATUS;
@@ -42,22 +42,51 @@ Please note the values `File` and `Position` as shown in this example you values
 | Binlog_Do_DB  | emrdb             |
 
 
-## Step 2: Configure Site 1
+## Step 2: Configure replication user on spoke
 
-Connect to site 01
+Connect to spoke
 
 ```bash
-    docker exec -it mysql-site01 mysql -uroot -pmaunclient
+    docker exec -it mysql-spoke mysql -uroot -pmaunclient
+```
+Setup to sync user to be used by replication
+```bash
+    CREATE USER 'syncuser'@'%' IDENTIFIED WITH mysql_native_password BY 'syncpassword';
+    GRANT REPLICATION SLAVE ON *.* TO 'syncuser'@'%';
+    FLUSH PRIVILEGES;
+```
+
+Load replication settings
+
+```bash
+    SHOW MASTER STATUS;
+```
+
+Please note the values `File` and `Position` as shown in this example you values might be different
+ 
+| Attribure     | Value             |
+| ------------- | ----------------- |
+| File          | mysql-bin.000003  |
+| Position      | 1351              |
+| Binlog_Do_DB  | emrdb             |
+
+
+## Step 3: Configure Hub
+
+Connect to hub
+
+```bash
+     docker exec -it mysql-hub mysql -uroot -pmauncentral
 ```
 Ensure values for `MASTER_LOG_FILE` and `MASTER_LOG_POS` are set to as per the `File` and `Position` in step 1
 
 ```bash
     CHANGE MASTER TO
-     MASTER_HOST='mysql-master',
+     MASTER_HOST='mysql-spoke',
      MASTER_USER='syncuser',
      MASTER_PASSWORD='syncpassword',
      MASTER_LOG_FILE='mysql-bin.000003',
-     MASTER_LOG_POS=1351;
+     MASTER_LOG_POS=850;
 
 ```
 
@@ -75,22 +104,22 @@ Verify replication on slave status has no errors
 
 ```
 
-## Step 3: Configure Site 2
+## Step 4: Configure spoke
 
-Connect to site 02
+Connect to s
 
 ```bash
-    docker exec -it mysql-site02 mysql -uroot -pmaunclient
+    docker exec -it mysql-spoke mysql -uroot -pmaunclient
 ```
 Ensure values for `MASTER_LOG_FILE` and `MASTER_LOG_POS` are set to as per the `File` and `Position` in step 1
 
 ```bash
     CHANGE MASTER TO
-     MASTER_HOST='mysql-master',
+     MASTER_HOST='mysql-hub',
      MASTER_USER='syncuser',
      MASTER_PASSWORD='syncpassword',
      MASTER_LOG_FILE='mysql-bin.000003',
-     MASTER_LOG_POS=1351;
+     MASTER_LOG_POS=850;
 
 ```
 
@@ -112,6 +141,6 @@ Create a sample table with data and check that data is available in the other da
 
 ```bash
     USE emrdb;
-    CREATE TABLE patients (id INT, name VARCHAR(100));
-    INSERT INTO patients VALUES (1, 'Maun Maun');
+    CREATE TABLE patients (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100));
+    INSERT INTO patients (name) VALUES ('Maun Maun');
 ```
